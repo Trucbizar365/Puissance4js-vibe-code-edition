@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puissance 4</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        .game-container {
+            text-align: center;
+        }
+
+        .title {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(7, 60px);
+            grid-template-rows: repeat(6, 60px);
+            gap: 2px;
+            background-color: #1e90ff;
+            border: 3px solid #1e90ff;
+            border-radius: 8px;
+            padding: 5px;
+            margin: 20px auto;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            background-color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .cell:hover {
+            background-color: #f0f0f0;
+        }
+
+        .cell.red {
+            background-color: #ff4d4d;
+        }
+
+        .cell.yellow {
+            background-color: #ffd700;
+        }
+
+        .status {
+            font-size: 20px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 0 10px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .winning-cell {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="title">Puissance 4</h1>
+        <div class="status" id="status">Tour du joueur rouge</div>
+        <div class="board" id="board"></div>
+        <div class="controls">
+            <button onclick="resetGame()">Nouvelle partie</button>
+        </div>
+    </div>
+
+    <script>
+        const ROWS = 6;
+        const COLS = 7;
+        const PLAYER_RED = 'red';
+        const PLAYER_YELLOW = 'yellow';
+        
+        let board = [];
+        let currentPlayer = PLAYER_RED;
+        let gameActive = true;
+
+        function initializeBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+            
+            // Initialisation du tableau 2D
+            board = Array(ROWS).fill().map(() => Array(COLS).fill(null));
+            
+            // Création des cellules
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.addEventListener('click', () => handleCellClick(col));
+                    boardElement.appendChild(cell);
+                }
+            }
+            
+            updateStatus();
+        }
+
+        function handleCellClick(col) {
+            if (!gameActive) return;
+            
+            // Trouver la première ligne vide dans la colonne
+            for (let row = ROWS - 1; row >= 0; row--) {
+                if (board[row][col] === null) {
+                    board[row][col] = currentPlayer;
+                    updateBoard();
+                    
+                    if (checkWin(row, col)) {
+                        gameActive = false;
+                        document.getElementById('status').textContent = 
+                            `Joueur ${currentPlayer === PLAYER_RED ? 'rouge' : 'jaune'} a gagné !`;
+                        highlightWinningCells();
+                    } else if (isBoardFull()) {
+                        gameActive = false;
+                        document.getElementById('status').textContent = 'Match nul !';
+                    } else {
+                        currentPlayer = currentPlayer === PLAYER_RED ? PLAYER_YELLOW : PLAYER_RED;
+                        updateStatus();
+                    }
+                    return;
+                }
+            }
+        }
+
+        function updateBoard() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                cell.className = 'cell';
+                
+                if (board[row][col] === PLAYER_RED) {
+                    cell.classList.add('red');
+                } else if (board[row][col] === PLAYER_YELLOW) {
+                    cell.classList.add('yellow');
+                }
+            });
+        }
+
+        function updateStatus() {
+            const statusElement = document.getElementById('status');
+            if (gameActive) {
+                statusElement.textContent = `Tour du joueur ${currentPlayer === PLAYER_RED ? 'rouge' : 'jaune'}`;
+            }
+        }
+
+        function checkWin(row, col) {
+            const player = board[row][col];
+            
+            // Vérifier les 4 directions
+            const directions = [
+                [[-1, -1], [1, 1]],   // diagonale haut-gauche à bas-droite
+                [[-1, 1], [1, -1]],   // diagonale haut-droite à bas-gauche
+                [[-1, 0], [1, 0]],    // vertical
+                [[0, -1], [0, 1]]     // horizontal
+            ];
+            
+            for (const dir of directions) {
+                let count = 1; // Le pion actuel
+                const winningCells = [[row, col]];
+                
+                for (const [dr, dc] of dir) {
+                    let r = row + dr;
+                    let c = col + dc;
+                    
+                    while (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                        if (board[r][c] === player) {
+                            count++;
+                            winningCells.push([r, c]);
+                            r += dr;
+                            c += dc;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                
+                if (count >= 4) {
+                    // Marquer les cellules gagnantes
+                    winningCells.forEach(([r, c]) => {
+                        const cell = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+                        cell.classList.add('winning-cell');
+                    });
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+        function highlightWinningCells() {
+            // Les cellules sont déjà mises en surbrillance dans checkWin
+        }
+
+        function isBoardFull() {
+            for (let col = 0; col < COLS; col++) {
+                if (board[0][col] === null) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function resetGame() {
+            currentPlayer = PLAYER_RED;
+            gameActive = true;
+            initializeBoard();
+        }
+
+        // Initialiser le jeu
+        window.onload = initializeBoard;
+    </script>
+</body>
+</html>
